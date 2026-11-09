@@ -25,11 +25,7 @@ type Lang = "en" | "am" | "om";
 type AdminLang = "en" | "am" | "om";
 
 const T: Record<string, Record<AdminLang, string>> = {
-  loginTitle:        { en: "Admin Login",                        am: "አስተዳዳሪ መግቢያ",              om: "Seensa Bulchiinsaa"              },
-  loginSub:          { en: "Enter your admin PIN",               am: "የአስተዳዳሪ PIN ያስገቡ",         om: "PIN bulchiinsaa kee galchi"       },
-  loginBtn:          { en: "Login →",                            am: "ግባ →",                     om: "Seeni →"                        },
   verifying:         { en: "Signing in...",                      am: "እየገባ...",                  om: "Seenaa jira..."                 },
-  wrongPin:          { en: "Invalid email or password.",         am: "ኢሜል ወይም የይለፍ ቃል ስህተት።",  om: "Imeelii ykn jecha darbii dogoggoraa." },
   emailLabel:        { en: "Email",                              am: "ኢሜል",                     om: "Imeelii"                        },
   passwordLabel:     { en: "Password",                           am: "የይለፍ ቃል",                 om: "Jecha Darbii"                   },
   backHome:          { en: "← Back to Home",                    am: "← ወደ ዋና ገጽ",              om: "← Mana Deebi'i"                 },
@@ -97,17 +93,6 @@ const T: Record<string, Record<AdminLang, string>> = {
   catLabel:          { en: "Categories",                         am: "ምድቦች",                  om: "Kategori"                       },
   catCountLabel:     { en: "categories",                         am: "ምድቦች",                  om: "kategori"                       },
   settings:          { en: "Settings",                           am: "ቅንብሮች",                 om: "Qindaa'ina"                     },
-  pinSecurity:       { en: "PIN Security",                       am: "PIN ደህንነት",              om: "Dhimma Nageenyaa PIN"            },
-  adminPinLabel:     { en: "Admin PIN",                          am: "አስተዳዳሪ PIN",             om: "PIN Bulchiinsaa"                 },
-  waiterPinLabel:    { en: "Waiter PIN",                         am: "አስተናጋጅ PIN",            om: "PIN Qoree Bitaa"                 },
-  currentPin:        { en: "Current PIN",                        am: "አሁን ያለ PIN",             om: "PIN Ammaa"                      },
-  newPin:            { en: "New PIN",                            am: "አዲስ PIN",               om: "PIN Haaraa"                     },
-  confirmNewPin:     { en: "Confirm New PIN",                    am: "አዲስ PIN ያረጋግጡ",         om: "PIN Haaraa Mirkaneessi"          },
-  changePin:         { en: "Change PIN",                         am: "PIN ቀይር",               om: "PIN Jijjiiri"                   },
-  pinChanged:        { en: "PIN updated successfully!",          am: "PIN በተሳካ ሁኔታ ተቀይሯል!",  om: "PIN milkaa'inaan haaromfame!"    },
-  pinMismatch:       { en: "New PINs do not match.",             am: "አዲስ PINs አይዛመዱም።",      om: "PIN Haaraan walsimaa miti."      },
-  pinWrong:          { en: "Current PIN is incorrect.",          am: "አሁን ያለ PIN ትክክል አይደለም።",om: "PIN Ammaa sirrii miti."          },
-  pinMinLen:         { en: "PIN must be at least 4 digits.",     am: "PIN ቢያንስ 4 ቁጥሮች ሊሆን ይገባዋል።", om: "PIN xiqqaate lakkoofsa 4 qabaachuu qaba." },
   changing:          { en: "Saving…",                            am: "እያስቀምጡ...",              om: "Olkaa'aa jira…"                 },
   logoSection:       { en: "Restaurant Logo",                    am: "የሬስቶራንት አርማ",            om: "Mallattoo Mana Nyaataa"          },
   logoDesc:          { en: "Shown in the menu header on every table",am: "በሁሉም ጠረጴዛ ሜኑ ርዕስ ላይ ይታያል", om: "Mata-duree nyaataa teessuma hundatti mul'ata" },
@@ -2155,18 +2140,75 @@ function ReviewsTab({ lang }: { lang: AdminLang }) {
 
 /* ═══════════════════════ SETTINGS TAB ═══════════════════════ */
 function SettingsTab({ lang }: { lang: AdminLang }) {
+  const queryClient = useQueryClient();
   const [restaurantName, setRestaurantName] = useState("");
   const [restaurantNameSaving, setRestaurantNameSaving] = useState(false);
   const [restaurantNameMsg, setRestaurantNameMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [logo, setLogo] = useState<string | null>(null);
+  const [logoSaving, setLogoSaving] = useState(false);
+  const [logoMsg, setLogoMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const logoInputRef = React.useRef<HTMLInputElement>(null);
+
+  function refreshMenuBranding() {
+    void queryClient.invalidateQueries({ queryKey: ["bundle"] });
+    try {
+      localStorage.removeItem("al_bundle_v2");
+      localStorage.removeItem("al_bundle_v3");
+    } catch {}
+  }
 
   useEffect(() => {
     authFetch(`${API_BASE}/settings`)
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (data?.restaurantName) setRestaurantName(data.restaurantName);
+        setLogo(typeof data?.logo === "string" ? data.logo : null);
       })
       .catch(() => {});
   }, []);
+
+  async function uploadRestaurantLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.currentTarget;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+
+    setLogoSaving(true);
+    setLogoMsg(null);
+    const form = new FormData();
+    form.append("image", file);
+    try {
+      const res = await authFetch(`${API_BASE}/upload/logo`, { method: "POST", body: form });
+      const data = await res.json() as { url?: unknown };
+      if (!res.ok || typeof data.url !== "string") throw new Error("Logo upload failed");
+      setLogo(data.url);
+      refreshMenuBranding();
+      setLogoMsg({ ok: true, text: t("logoUpdated", lang) });
+    } catch {
+      setLogoMsg({ ok: false, text: t("logoFailed", lang) });
+    } finally {
+      setLogoSaving(false);
+    }
+  }
+
+  async function removeRestaurantLogo() {
+    setLogoSaving(true);
+    setLogoMsg(null);
+    try {
+      const res = await authFetch(`${API_BASE}/settings`, {
+        method: "PATCH",
+        body: JSON.stringify({ logo: null }),
+      });
+      if (!res.ok) throw new Error("Logo removal failed");
+      setLogo(null);
+      refreshMenuBranding();
+      setLogoMsg({ ok: true, text: t("logoRemoved", lang) });
+    } catch {
+      setLogoMsg({ ok: false, text: t("logoFailed", lang) });
+    } finally {
+      setLogoSaving(false);
+    }
+  }
 
   async function saveRestaurantName(e: React.FormEvent) {
     e.preventDefault();
@@ -2182,12 +2224,7 @@ function SettingsTab({ lang }: { lang: AdminLang }) {
       body: JSON.stringify({ restaurantName: value }),
     });
     setRestaurantNameSaving(false);
-    if (res.ok) {
-      try {
-        localStorage.removeItem("al_bundle_v2");
-        localStorage.removeItem("al_bundle_v3");
-      } catch {}
-    }
+    if (res.ok) refreshMenuBranding();
     setRestaurantNameMsg({
       ok: res.ok,
       text: res.ok ? t("restaurantNameSaved", lang) : "Could not save restaurant settings.",
@@ -2196,6 +2233,65 @@ function SettingsTab({ lang }: { lang: AdminLang }) {
 
   return (
     <div className="w-full">
+
+      {/* ── Restaurant logo card ── */}
+      <div className="mt-8 mb-6">
+        <h2 className="text-lg font-bold text-[#1B2A4A] flex items-center gap-2">
+          <Camera className="w-5 h-5 text-[#C1440E]" />
+          {t("logoSection", lang)}
+        </h2>
+        <p className="text-sm text-slate-400 mt-0.5 ml-7">
+          {t("logoDesc", lang)}
+        </p>
+      </div>
+
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden mb-8">
+        <div className="p-6 flex flex-col sm:flex-row items-center gap-5">
+          <div className="w-28 h-24 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-center p-3 shrink-0">
+            {logo
+              ? <img src={logo} alt={t("logoSection", lang)} className="max-w-full max-h-full object-contain" />
+              : <span className="text-xs text-slate-400">{t("noLogo", lang)}</span>}
+          </div>
+          <div className="w-full space-y-3">
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={uploadRestaurantLogo}
+            />
+            <button
+              type="button"
+              disabled={logoSaving}
+              onClick={() => logoInputRef.current?.click()}
+              className="w-full bg-[#1B2A4A] hover:bg-[#243760] text-white font-semibold py-3 rounded-2xl text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <Camera className="w-4 h-4" />
+              {logoSaving ? t("uploading", lang) : logo ? t("changeLogo", lang) : t("uploadLogo", lang)}
+            </button>
+            {logo && (
+              <button
+                type="button"
+                disabled={logoSaving}
+                onClick={removeRestaurantLogo}
+                className="w-full border border-red-200 text-red-500 hover:bg-red-50 font-semibold py-3 rounded-2xl text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                {t("removeLogo", lang)}
+              </button>
+            )}
+          </div>
+        </div>
+        {logoMsg && (
+          <div className={cn(
+            "mx-6 mb-6 flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-medium",
+            logoMsg.ok ? "bg-green-50 text-green-700 border border-green-100" : "bg-red-50 text-red-600 border border-red-100",
+          )}>
+            {logoMsg.ok ? <Check className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+            {logoMsg.text}
+          </div>
+        )}
+      </div>
 
       {/* ── Restaurant name card ── */}
       <div className="mt-8 mb-6">

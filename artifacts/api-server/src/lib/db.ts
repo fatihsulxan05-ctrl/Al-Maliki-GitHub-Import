@@ -247,6 +247,9 @@ export async function dbLoadOrders(): Promise<Order[]> {
     items: row.items ?? [],
     status: row.status,
     createdAt: Number(row.created_at),
+    ...(row.status === "delivered"
+      ? { deliveredAt: Number(row.delivered_at ?? row.created_at) }
+      : {}),
     ...(row.note ? { note: row.note } : {}),
   })) as Order[];
 }
@@ -265,6 +268,7 @@ export async function dbSaveOrder(order: Order): Promise<void> {
     status: order.status,
     note: order.note ?? null,
     created_at: order.createdAt,
+    delivered_at: order.deliveredAt ?? null,
   });
   ensureNoError(error, "saveOrder");
 }

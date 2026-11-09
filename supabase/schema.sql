@@ -40,8 +40,14 @@ create table if not exists public.orders (
   status text not null default 'pending'
     check (status in ('pending', 'preparing', 'ready', 'delivered', 'cancelled')),
   note text,
-  created_at bigint not null
+  created_at bigint not null,
+  delivered_at bigint
 );
+
+alter table public.orders add column if not exists delivered_at bigint;
+update public.orders
+set delivered_at = created_at
+where status = 'delivered' and delivered_at is null;
 
 create table if not exists public.waiter_calls (
   table_id text primary key,

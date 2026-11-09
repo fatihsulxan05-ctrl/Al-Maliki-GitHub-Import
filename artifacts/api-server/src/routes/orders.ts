@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { nanoid } from "nanoid";
-import { authMiddleware, isText } from "./store.js";
+import { adminOnly, authMiddleware, isText } from "./store.js";
 import type { Order, OrderItem, OrderStatus, Review } from "./store.js";
 import {
   dbDeleteReview,
@@ -15,13 +15,22 @@ import { allowPublicAction } from "./public-rate-limit.js";
 const router = Router();
 const terminalStatuses: OrderStatus[] = ["delivered", "cancelled"];
 
-router.get("/orders", authMiddleware, async (req, res) => {
+router.get("/orders", (req, res, next) => {
+  const guard = req.query["includeArchived"] === "1" ? adminOnly : authMiddleware;
+  void guard(req, res, next);
+}, async (req, res) => {
   try {
     const allOrders = await dbLoadOrders();
     const includeArchived = req.query["includeArchived"] === "1";
+    const includeRecentDelivered = req.query["includeRecentDelivered"] === "1";
+    const recentDeliveredAfter = Date.now() - 60 * 60_000;
     res.json(includeArchived
       ? allOrders
-      : allOrders.filter((order) => !terminalStatuses.includes(order.status)));
+      : allOrders.filter((order) =>
+        !terminalStatuses.includes(order.status) ||
+        (includeRecentDelivered && order.status === "delivered" &&
+          typeof order.deliveredAt === "number" && order.deliveredAt >= recentDeliveredAfter)
+      ));
   } catch {
     res.status(503).json({ error: "Orders are temporarily unavailable." });
   }
@@ -143,7 +152,14 @@ router.patch("/orders/:id/status", authMiddleware, async (req, res) => {
       res.status(404).json({ error: "Order not found." });
       return;
     }
-    const updatedOrder = { ...order, status: status as OrderStatus };
+    const nextStatus = status as OrderStatus;
+    const updatedOrder = {
+      ...order,
+      status: nextStatus,
+      ...(nextStatus === "delivered"
+        ? { deliveredAt: order.status === "delivered" ? order.deliveredAt ?? Date.now() : Date.now() }
+        : { deliveredAt: undefined }),
+    };
     await dbSaveOrder(updatedOrder);
     res.json(updatedOrder);
   } catch {

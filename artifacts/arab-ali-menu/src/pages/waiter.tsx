@@ -131,7 +131,7 @@ function WaiterDashboard({ lang, setLang, onLogout }: { lang: WLang; setLang: (l
   });
   const { data: orders = [] } = useQuery<Order[]>({
     queryKey: ["waiter-orders"],
-    queryFn: async () => { const r = await staffFetch(`${API_BASE}/orders`, { cache: "no-store" }); return r.ok ? r.json() : []; },
+    queryFn: async () => { const r = await staffFetch(`${API_BASE}/orders?includeRecentDelivered=1`, { cache: "no-store" }); return r.ok ? r.json() : []; },
     staleTime: 0,
     refetchInterval: 4_000,
   });

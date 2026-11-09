@@ -9,7 +9,7 @@ export interface WaiterCall { tableId: string; count: number; lastCalledAt: numb
 export interface Settings { restaurantName: string; logo: string | null; }
 export interface OrderItem { menuItemId: string; name: LangMap; price: number; quantity: number; }
 export type OrderStatus = "pending" | "preparing" | "ready" | "delivered" | "cancelled";
-export interface Order { id: string; tableId: string; tableNumber: number; items: OrderItem[]; status: OrderStatus; createdAt: number; note?: string; }
+export interface Order { id: string; tableId: string; tableNumber: number; items: OrderItem[]; status: OrderStatus; createdAt: number; deliveredAt?: number; note?: string; }
 export interface Review { id: string; tableId: string; tableNumber: number; mood: string | null; stars: number; comment: string; createdAt: number; }
 
 export const store = {

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wouter";
+import { Switch, Route, Redirect, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ClerkProvider, SignIn, useAuth } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
@@ -8,7 +8,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import MenuPage from "@/pages/menu";
-import { ChefHat, Settings } from "lucide-react";
 
 const LOGO_URL = "/images/arab-ali-hotel-mark.svg";
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -38,14 +37,15 @@ function PageLoading() {
 }
 
 function StaffLanding() {
-  const [, navigate] = useLocation();
   const [restaurantName, setRestaurantName] = useState("ARAB ALI HOTEL");
+  const [restaurantLogo, setRestaurantLogo] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/bundle", { cache: "no-store" })
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (data?.settings?.restaurantName) setRestaurantName(data.settings.restaurantName);
+        setRestaurantLogo(typeof data?.settings?.logo === "string" ? data.settings.logo : null);
       })
       .catch(() => {});
   }, []);
@@ -83,7 +83,7 @@ function StaffLanding() {
               }}
             >
               <img
-                src={LOGO_URL}
+                src={restaurantLogo || LOGO_URL}
                 alt={restaurantName}
                 width={132}
                 height={70}
@@ -126,59 +126,6 @@ function StaffLanding() {
             </p>
           </div>
 
-          <div style={{ padding: "24px 24px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-            <button
-              onClick={() => navigate("/garson")}
-              style={{
-                display: "flex", alignItems: "center", gap: 16,
-                background: "#1a2035", color: "#fff",
-                padding: "15px 18px", borderRadius: 16,
-                border: "none", cursor: "pointer", width: "100%",
-                textAlign: "left",
-              }}
-            >
-              <div style={{
-                width: 42, height: 42, background: "rgba(255,255,255,0.1)",
-                borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center",
-                flexShrink: 0,
-              }}>
-                <ChefHat style={{ width: 20, height: 20, color: "#fff" }} />
-              </div>
-              <div>
-                <p style={{ fontWeight: 700, fontSize: 15, margin: 0, color: "#fff" }}>Waiter Panel</p>
-                <p style={{ fontSize: 12, margin: "3px 0 0", color: "rgba(255,255,255,0.45)" }}>
-                  Track orders and table calls
-                </p>
-              </div>
-            </button>
-
-            <button
-              onClick={() => navigate("/admin")}
-              style={{
-                display: "flex", alignItems: "center", gap: 16,
-                background: "#f5f4f2", color: "#111",
-                padding: "15px 18px", borderRadius: 16,
-                border: "1px solid #e5e1db", cursor: "pointer", width: "100%",
-                textAlign: "left",
-              }}
-            >
-              <div style={{
-                width: 42, height: 42, background: "#ebe8e4",
-                borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center",
-                flexShrink: 0,
-              }}>
-                <Settings style={{ width: 20, height: 20, color: "#555" }} />
-              </div>
-              <div>
-                <p style={{ fontWeight: 700, fontSize: 15, margin: 0, color: "#111" }}>Admin Panel</p>
-                <p style={{ fontSize: 12, margin: "3px 0 0", color: "#999" }}>
-                  Manage menu, tables and QR codes
-                </p>
-              </div>
-            </button>
-          </div>
-
-          <div style={{ paddingBottom: 8 }} />
         </div>
       </div>
     </div>
@@ -214,6 +161,7 @@ function ClerkBoundary({ children }: { children: React.ReactNode }) {
           cardBox: "bg-white rounded-3xl w-[440px] max-w-full overflow-hidden shadow-2xl",
           card: "!shadow-none !border-0 !bg-transparent !rounded-none",
           footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
+          footerAction: "hidden",
           headerTitle: "text-[#1B2A4A]",
           headerSubtitle: "text-stone-500",
           socialButtonsBlockButtonText: "text-[#1B2A4A]",
@@ -294,7 +242,6 @@ function SignInPage() {
         <SignIn
           routing="path"
           path={`${basePath}/sign-in`}
-          signUpUrl={`${basePath}/sign-in`}
         />
       </div>
     </ClerkBoundary>
@@ -309,7 +256,9 @@ function Router() {
         <Route path="/masa" component={MenuPage} />
         <Route path="/masa/:tableId" component={MenuPage} />
         <Route path="/sign-in/*?" component={SignInPage} />
-        <Route path="/sign-up/*?" component={() => <Redirect to="/sign-in" />} />
+        <Route path="/sign-up/*?">
+          <Redirect to="/sign-in" />
+        </Route>
         <Route path="/garson">
           <ProtectedPage requiredRole="waiter"><WaiterPage /></ProtectedPage>
         </Route>
