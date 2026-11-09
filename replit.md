@@ -26,7 +26,7 @@ Masaya özel QR menü; müşteriler `/masa/:tableId` üzerinden menüyü görün
 
 | Rota | Erişim | Açıklama |
 |---|---|---|
-| `/` | Herkese açık | Restoran marka ekranı; garson/yönetici bağlantısı göstermez |
+| `/` | Herkese açık | Restoran marka ekranı ve garson/yönetici giriş bağlantıları; paneller Clerk rolüyle korunur |
 | `/masa/:tableId` | Herkese açık | QR ile açılan müşteri menüsü |
 | `/sign-in` | Herkese açık | Clerk Google girişi |
 | `/sign-up/*` | `/sign-in` sayfasına yönlendirilir | Herkese açık kayıt arayüzü kapalıdır |
